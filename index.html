@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Главная</title>
+</head>
+<body>
+<h1>Тест Flask</h1>
+<p>Количество сообщений: {{ messages|length }}</p>
+<ul>
+{% for timestamp, msg in messages.items() %}
+  <li>{{ msg.username }}: {{ msg.message }} ({{ timestamp }})</li>
+{% endfor %}
+</ul>
+</body>
+</html>
