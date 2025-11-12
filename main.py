@@ -8,18 +8,43 @@ import tempfile
 
 
 app = Flask(__name__)   
-
 @app.route('/')
 def index():
     ensure_storage()
     data_path = "storage/data.json"
-    with open(data_path, "r", encoding="utf-8") as f:
-        messages = json.load(f)
+    data_path = os.path.join("storage", "data.json")
+    print("DATA PATH:", os.path.abspath(data_path))
+
+
+    try:
+        with open(data_path, "r", encoding="utf-8") as f:
+            messages = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        messages = {}
+    print("DATA JSON:", messages)
     return render_template('index.html', messages=messages)
+
+def add_test_message():
+    data_path = os.path.join("storage", "data.json")
+    ensure_storage()
+    try:
+        with open(data_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        data = {}
+    
+    timestamp = "2025-11-06 01:00:00"
+    data[timestamp] = {"username": "TestUser", "message": "Привет! Это тестовое сообщение."}
+
+    with open(data_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('error.html'), 404
+
 
 def send_udp_message(payload, host="127.0.0.1", port=5000):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -30,9 +55,10 @@ def send_udp_message(payload, host="127.0.0.1", port=5000):
 def ensure_storage():
     os.makedirs("storage", exist_ok=True)
     data_path = os.path.join("storage", "data.json")
-    if not os.path.exists(data_path):
+    if not os.path.exists(data_path) or os.path.getsize(data_path) == 0:
         with open(data_path, "w", encoding="utf-8") as f:
             json.dump({}, f, ensure_ascii=False, indent=2)
+
 
 def udp_server(host="0.0.0.0", port=5000):
     ensure_storage()
@@ -81,11 +107,15 @@ def message():
     
     return redirect(url_for('index'))
 
-
 if __name__ == '__main__':
     ensure_storage()
-    t = threading.Thread(target=udp_server, daemon=True)
-    t.start()
-    app.run(host='0.0.0.0', port=3000)
 
 
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        t = threading.Thread(target=udp_server, daemon=True)
+        t.start()
+        print("[UDP] Сервер запущен на порту 5000")
+
+add_test_message()
+
+app.run(host='0.0.0.0', port=3000, debug=True)
